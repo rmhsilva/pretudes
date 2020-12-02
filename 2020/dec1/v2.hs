@@ -1,4 +1,5 @@
 -- Smarter.
+
 import Data.List (sort)
 import Data.Maybe
 import Data.Set (fromList)
