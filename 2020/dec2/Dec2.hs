@@ -1,3 +1,12 @@
+-- Regular expressions in Haskell are a mess!
+-- See: https://gabebw.com/blog/2015/10/11/regular-expressions-in-haskell
+--
+-- Debugging: https://downloads.haskell.org/~ghc/7.4.1/docs/html/users_guide/ghci-debugger.html
+-- :set -fbreak-on-exception
+-- :trace main
+-- :back
+-- s (prints value of s at the exception time)
+
 import Text.Regex.PCRE
 import Data.List
 
