@@ -6,7 +6,11 @@ data Position = Position Int Int
 data Slope = Slope Int Int
   deriving Show
 
+type Treesmap = [String]
 
+
+-- Get char at position in treemap
+charAt :: Treesmap -> Position -> Char
 charAt treesmap (Position x y) =
   row !! xwrap
   where
@@ -14,28 +18,33 @@ charAt treesmap (Position x y) =
     row = treesmap !! y
 
 
-isHit :: [String] -> Position -> Bool
+-- Check if position is a tree
+isHit :: Treesmap -> Position -> Bool
 isHit treesmap position =
   charAt treesmap position == '#'
 
 
 -- Get all steps (positions) when walking over a given treemap with slope
-getAllSteps :: Slope -> [String] -> [Position]
+getAllSteps :: Slope -> Treesmap -> [Position]
 getAllSteps (Slope dx dy) treesmap =
   zipWith Position [0,dx..] [0,dy..(height-1)]
   where
     height = length treesmap
 
 
-walk :: Slope -> [String] -> [Bool]
-walk slope treesmap =
+-- Goooo down the slope, returning list of whether each step is a tree
+gooo :: Slope -> Treesmap -> [Bool]
+gooo slope treesmap =
   map (isHit treesmap) (getAllSteps slope treesmap)
 
 
-solve1 :: [String] -> Slope -> Int
+-- Count number of trees
+solve1 :: Treesmap -> Slope -> Int
 solve1 treesmap slope =
-  sum $ map (\x -> if x then 1 else 0) $ walk slope treesmap
+  sum $ map (\x -> if x then 1 else 0) $ gooo slope treesmap
 
+
+-- Do the same, multiple times...
 solve2 treesmap =
   product hits
   where
@@ -47,7 +56,7 @@ solve2 treesmap =
     hits = map (solve1 treesmap) slopes
 
 
-td :: [String]
+td :: Treesmap
 td = ["..##.......",
       "#...#...#..",
       ".#....#..#.",
