@@ -1,6 +1,9 @@
-
+-- Yay!
 
 data Position = Position Int Int
+  deriving Show
+
+data Slope = Slope Int Int
   deriving Show
 
 
@@ -16,26 +19,32 @@ isHit treesmap position =
   charAt treesmap position == '#'
 
 
-dy = 1
-dx = 3
-
-step (Position x y) = Position (x + dx) (y + dy)
-
-
-getAllSteps :: [String] -> [Position]
-getAllSteps treesmap = zipWith Position [0,dx..] [0,dy..(height-1)]
+-- Get all steps (positions) when walking over a given treemap with slope
+getAllSteps :: Slope -> [String] -> [Position]
+getAllSteps (Slope dx dy) treesmap =
+  zipWith Position [0,dx..] [0,dy..(height-1)]
   where
     height = length treesmap
 
 
-walk :: [String] -> [Bool]
-walk treesmap =
-  map (isHit treesmap) (getAllSteps treesmap)
+walk :: Slope -> [String] -> [Bool]
+walk slope treesmap =
+  map (isHit treesmap) (getAllSteps slope treesmap)
 
 
-solve :: [String] -> Int
-solve treesmap =
-  sum $ map (\x -> if x then 1 else 0) $ walk treesmap
+solve1 :: [String] -> Slope -> Int
+solve1 treesmap slope =
+  sum $ map (\x -> if x then 1 else 0) $ walk slope treesmap
+
+solve2 treesmap =
+  product hits
+  where
+    slopes = [Slope 1 1,
+              Slope 3 1,
+              Slope 5 1,
+              Slope 7 1,
+              Slope 1 2]
+    hits = map (solve1 treesmap) slopes
 
 
 td :: [String]
@@ -54,5 +63,9 @@ td = ["..##.......",
 main = do
   dat <- readFile "data.txt"
   putStrLn $ unlines $ take 5 $ lines dat
-  print $ solve $ lines dat
+
+  print $ solve1 (lines dat) (Slope 3 1)
   -- 262
+
+  print $ solve2 $ lines dat
+  -- 2698900776
