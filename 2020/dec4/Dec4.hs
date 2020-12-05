@@ -13,6 +13,11 @@ import Text.Regex.PCRE (mrSubList, MatchResult, (=~))
 import Data.List
 import Data.Maybe
 
+-- How this SHOULD have been implmented:
+type Passport = [Field]  -- split on space
+data Field = Field {name :: String, value :: String}  -- validate separately
+
+
 splitStr :: Eq a => [a] -> [a] -> [[a]]
 splitStr sub str = split' sub str [] []
     where
@@ -64,7 +69,7 @@ allExtractors = map extract requiredFields
 extractAll pp = map (\e -> e pp) allExtractors
 
 check2 :: String -> Bool
-check2 = (all id) . check2Fields
+check2 = and . check2Fields
 
 check2Fields :: String -> [Bool]
 check2Fields pp =
@@ -99,7 +104,7 @@ td = unlines ["ecl:gry pid:860033327 eyr:2020 hcl:#fffffd",
 
 findValid :: [String] -> [String]
 findValid pps =
-  map fst $ filter (\(_, checks) -> (all id checks)) $ zip pps (map check2Fields pps)
+  map fst $ filter (\(_, checks) -> and checks) $ zip pps (map check2Fields pps)
 
 main = do
   dat <- readFile "data.txt"
