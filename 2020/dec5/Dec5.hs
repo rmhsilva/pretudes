@@ -2,7 +2,7 @@
 
 module Dec5 where
 
-import Data.Maybe (catMaybes)
+import Data.Maybe (mapMaybe)
 
 type SeatSpec = String
 
@@ -13,7 +13,7 @@ type Range = [Int]
 
 
 seatId :: Seat -> Int
-seatId s = 8 * (row s) + (col s)
+seatId s = 8 * row s + col s
 
 
 -- partition with the custom char rules
@@ -23,7 +23,7 @@ part chr r
   | chr `elem` ['B', 'R'] = drop split r
   | otherwise = error "bad chr"
   where
-    split = (length r) `div` 2
+    split = length r `div` 2
 
 
 -- recursive binary partition
@@ -77,7 +77,7 @@ takenIdRange seats =
 
 findGap :: [Seat] -> Int
 findGap seats =
-  head $ catMaybes $ map isThisMine (triples (takenIdRange seats))
+  head $ mapMaybe isThisMine (triples (takenIdRange seats))
   where
     -- this only works because takenIdRange generates a continuous range
     isThisMine (Just l, Nothing, Just r) = Just (l + 1)

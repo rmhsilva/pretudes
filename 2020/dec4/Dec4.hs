@@ -14,8 +14,8 @@ import Data.List
 import Data.Maybe
 
 -- How this SHOULD have been implmented:
-type Passport = [Field]  -- split on space
-data Field = Field {name :: String, value :: String}  -- validate separately
+-- type Passport = [Field]  -- split on space
+-- data Field = Field {name :: String, value :: String}  -- validate separately
 
 
 splitStr :: Eq a => [a] -> [a] -> [[a]]

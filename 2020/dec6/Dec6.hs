@@ -54,7 +54,7 @@ main = do
   dat <- readFile "data.txt"
   let answers = parseInput $ lines dat
 
-  print $ length answers
+  -- print $ length answers
   -- 483
 
   print $ solve1 answers
