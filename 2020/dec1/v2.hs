@@ -1,4 +1,4 @@
--- Smarter.
+-- Smarter and way faster than the simple.hs
 
 import Data.List (sort)
 import Data.Maybe
@@ -10,11 +10,11 @@ td = [4, 2, 3, 6, 1] :: [Int]
 
 
 fillMaybes :: Int -> Int -> [Maybe Int]
-fillMaybes a b = (replicate (b - a - 1) Nothing) ++ [Just b]
+fillMaybes a b = replicate (b - a - 1) Nothing ++ [Just b]
 
 makeSparse :: Int -> [Int] -> [Maybe Int]
 makeSparse n lst =
-  take (n - 1) $ concat $ zipWith fillMaybes ([0] ++ sorted) (sorted ++ [n+1])
+  take (n - 1) $ concat $ zipWith fillMaybes (0 : sorted) (sorted ++ [n+1])
   where
     sorted = sort lst
 
@@ -32,10 +32,10 @@ findSolutionPair :: [Maybe Int] -> Maybe [Int]
 findSolutionPair sparse =
   listToMaybe $
   filter ((> 1) . length) $
-  map (\x -> [x] ++ (findPairs secondHalf n x)) $
+  map (\x -> x : findPairs secondHalf n x) $
   catMaybes firstHalf
   where
-    n = (length sparse) + 1
+    n = length sparse + 1
     firstHalf = take (n `div` 2) sparse
     secondHalf = drop (n `div` 2) sparse
 
@@ -43,11 +43,7 @@ findSolutionPair sparse =
 -- Find the winning pair and multiply the elements
 solve :: Int -> [Int] -> Int
 solve n lst =
-  foldr (*) 1 $
-  fromJust $
-  findSolutionPair sparse
-  where
-    sparse = makeSparse n lst
+  product $ fromJust $ findSolutionPair $ makeSparse n lst
 
 
 
@@ -55,10 +51,10 @@ solve n lst =
 findSolutionTriples :: [Maybe Int] -> [[Int]]
 findSolutionTriples sparse =
   filter ((> 2) . length . fromList) $ -- filter sums with duplicated numbers
-  map (\x -> [x] ++ fromMaybe [] (findSolutionPair (take (n - x - 1) sparse))) $
+  map (\x -> x : fromMaybe [] (findSolutionPair (take (n - x - 1) sparse))) $
   catMaybes firstChunk
   where
-    n = (length sparse) + 1
+    n = length sparse + 1
     -- Start from the largest number so that the mapped call to findSolutionPair
     -- can get a slice from the smallest
     firstChunk = take (2 * (n `div` 3)) $ reverse sparse
@@ -67,7 +63,7 @@ findSolutionTriples sparse =
 -- Stretch goal: Find the 3 numbers that sum to 2020 and multiply them
 stretch :: Int -> [Int] -> Int
 stretch n lst =
-  foldr (*) 1 $
+  product $
   head $
   findSolutionTriples (makeSparse n lst)
 
@@ -80,8 +76,8 @@ main = do
   dat <- readFile "data.txt"
   -- print $ map (\x -> read x :: Int) (lines dat)
 
-  print . (solve 2020) $ map (\x -> read x :: Int) (lines dat)
+  print . solve 2020 $ map (\x -> read x :: Int) (lines dat)
   -- answer: 538464
 
-  print . (stretch 2020) $ map (\x -> read x :: Int) (lines dat)
+  print . stretch 2020 $ map (\x -> read x :: Int) (lines dat)
   -- answer: 278783190
