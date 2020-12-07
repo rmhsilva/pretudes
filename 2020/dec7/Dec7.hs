@@ -14,6 +14,7 @@ import Data.Tree (flatten)
 import Data.Graph (Graph, graphFromEdges, transposeG, dfs)
 import Data.Set (fromList)
 import Data.List
+import qualified Data.Map as Map
 import Data.Maybe (fromJust)
 
 type Bag = String
@@ -42,12 +43,34 @@ fst3 (a,_,_) = a
 
 
 
-go ls =
+solve1 ls =
   map (filter (/=0)) $
   map flatten $
   dfs (transposeG graph) [fromJust $ vertexFromKey "shiny gold"]
   where
     (graph, _, vertexFromKey) = graphFromEdges $ map (toAdjMat . parseLine) ls
+
+
+-- foo :: Bag -> [(Int, Bag)] -> Int
+-- foo m parent [] = 1
+-- foo m parent children = 1 + sum (map (bar m) children)
+
+-- bar :: Map.Map Bag [(Int, Bag)] -> (Int, Bag) -> Int
+-- bar m (0, _) = 0
+-- bar m (x, b) = x * (foo m b $ m Map.! b ))
+
+
+go :: Map.Map Bag [(Int, Bag)] -> Bag -> Int
+go m node =
+  1 + (sum $ map (\(count, bag) -> count * (go m bag)) children)
+  where
+    children = m Map.! node
+
+solve2 ls =
+  (go m "shiny gold") - 1
+  where
+    m = Map.fromList $ map parseLine ls
+
 
 
 
@@ -97,5 +120,8 @@ main = do
   dat <- readFile "data.txt"  -- 594 lines
   let ls = lines dat
 
-  print $ length $ head $ go ls
+  print $ (length $ head $ solve1 ls) - 1
+  -- 115
+
+  print $ solve2 ls
   -- 115
