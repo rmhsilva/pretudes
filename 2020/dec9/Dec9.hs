@@ -2,6 +2,7 @@ module Dec9 where
 
 import Data.Maybe
 import Data.List
+import Data.Function ((&))
 
 
 -- trivial version of Dec1.
@@ -46,13 +47,14 @@ segments = filter (not . null) . concatMap inits . tails
 
 
 -- Find a segment in xs that sums to n, assuming that the segment occurs before
--- the element n.
+-- the element n. Used the (&) operator just for fun. It's like ($) but
+-- backwards, so slightly more readable in a pipeline.
 findSummingRange :: Int -> [Int] -> [Int]
 findSummingRange n xs =
-  fromJust
-  $ find ((==n) . sum)
-  $ segments
-  $ take (fromJust $ elemIndex n xs) xs
+  take (fromJust $ elemIndex n xs) xs
+  & segments
+  & find ((==n) . sum)
+  & fromJust
 
 
 solve2 :: Int -> [Int] -> Int
