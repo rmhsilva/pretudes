@@ -6,7 +6,7 @@ import Data.Sequence (Seq, fromList, findIndicesL, index, adjust)
 data Instruction = Instruction {op :: String, arg :: Int}
   deriving Show
 
-data VM = VM {addr :: Int, history :: [Int], acc :: Int, code :: Seq Instruction}
+data VM = VM {addr :: Int, acc :: Int, code :: Seq Instruction}
   deriving Show
 
 
@@ -19,18 +19,18 @@ execute vm i = error ("Bad instruction: " ++ show i)
 
 
 -- run a VM until termination (or a loop begins)
-runVM :: VM -> VM
-runVM vm
-  | addr vm `elem` history vm = vm
+runVM :: [Int] -> VM -> VM
+runVM history vm
+  | addr vm `elem` history = vm
   | addr vm == length (code vm) = vm  -- for part 2
-  | otherwise = runVM new_vm { history = addr vm:history vm }
+  | otherwise = runVM (addr vm:history) new_vm
   where
     new_vm = execute vm (index (code vm) (addr vm))
 
 
 -- initialise and run a VM to completion
 initAndRun :: Seq Instruction -> VM
-initAndRun instrs = runVM $ VM 0 [] 0 instrs
+initAndRun instrs = runVM [] $ VM 0 0 instrs
 
 
 -- switch an instruction type for part2
