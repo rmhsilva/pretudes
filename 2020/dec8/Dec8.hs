@@ -18,6 +18,9 @@ execute vm Instruction{op="jmp", arg=n} = vm { addr = addr vm + n }
 execute vm i = error ("Bad instruction: " ++ show i)
 
 
+-- NOTE: this recursive definition could have been written with `until':
+-- finalVm = until terminated execute vm
+
 -- run a VM until termination (or a loop begins)
 runVM :: [Int] -> VM -> VM
 runVM history vm

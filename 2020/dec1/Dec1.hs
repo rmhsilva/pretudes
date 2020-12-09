@@ -1,4 +1,5 @@
 -- Smarter and way faster than the simple.hs
+module Dec1 where
 
 import Data.List (sort)
 import Data.Maybe
