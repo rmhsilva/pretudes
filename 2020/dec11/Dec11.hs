@@ -33,8 +33,32 @@ updateAt c (x, y) v =
   Sequence.update y (Sequence.update x v (c `Sequence.index` y)) c
 
 
+sightlines w h x y =
+  filter (not . null) [upleft,   up,   upright,
+                       left,           right,
+                       downleft, down, downright]
+  where
+    -- :: [[(x, y)]]
+    left       = zip [x-1,x-2..0] (repeat y)
+    right      = zip [x+1..w-1]   (repeat y)
+    up         = zip (repeat x)   [y-1,y-2..0]
+    down       = zip (repeat x)   [y+1..h-1]
+    upleft     = zip [x-1,x-2..0] [y-1,y-2..0]
+    upright    = zip [x+1..w-1]   [y-1,y-2..0]
+    downleft   = zip [x-1,x-2..0] [y+1..h-1]
+    downright  = zip [x+1..w-1]   [y+1..h-1]
+
+
 visibleCells :: Configuration -> Position -> [Cell]
-visibleCells c (x, y) = []
+visibleCells c (x, y) =
+  catMaybes $
+  map v' $ sightlines (width c) (height c) x y
+  where
+    maybeHead [] = Nothing
+    maybeHead (x:_) = Just x
+    v' :: [Position] -> Maybe Cell
+    v' = maybeHead . filter (/='.') . mapMaybe (c `at`)
+
 
 adjacentCells :: Configuration -> Position -> [Cell]
 adjacentCells c (x, y) = mapMaybe (at c) positions
@@ -46,40 +70,57 @@ adjacentCells c (x, y) = mapMaybe (at c) positions
 numOccupied :: [Cell] -> Int
 numOccupied = length . filter (=='#')
 
-numAdjacentOccupied :: Configuration -> Position -> Int
+type OccupiedCounter = Configuration -> Position -> Int
+
+numAdjacentOccupied :: OccupiedCounter
 numAdjacentOccupied c = numOccupied . adjacentCells c
 
-numVisibleOccupied :: Configuration -> Position -> Int
+numVisibleOccupied :: OccupiedCounter
 numVisibleOccupied c = numOccupied . visibleCells c
 
 
-nextState :: (Cell, Int) -> Cell
-nextState ('L', 0) = '#'
-nextState ('#', x) = if x >= 4 then 'L' else '#'
-nextState (c, _)   = c
+nextState :: Int -> (Cell, Int) -> Cell
+nextState tolerance ('L', 0) = '#'
+nextState tolerance ('#', x) = if x >= tolerance then 'L' else '#'
+nextState tolerance (c, _)   = c
 
 
-nextCell :: Configuration -> Position -> Cell
-nextCell c pos = nextState (fromJust (c `at` pos), numAdjacentOccupied c pos)
+type NextCellFunction = Configuration -> Position -> Cell
+
+nextCell :: Int -> OccupiedCounter -> NextCellFunction
+nextCell tolerance f c pos =
+  nextState tolerance (fromJust (c `at` pos), f c pos)
+
+nextCell1 :: NextCellFunction
+nextCell1 = nextCell 4 numAdjacentOccupied
+
+nextCell2 :: NextCellFunction
+nextCell2 = nextCell 5 numVisibleOccupied
+
 
 cmap :: (Configuration -> Position -> a) -> Configuration -> [a]
 cmap f c = [f c (x, y) |
              y <- [0..height c - 1],
              x <- [0..width c - 1]]
 
-step :: Configuration -> Configuration
-step c =
-  fromList (width c) $ cmap nextCell c
+step :: NextCellFunction -> Configuration -> Configuration
+step nextCellFn c =
+  fromList (width c) $ cmap nextCellFn c
 
 
 count x = length . filter (==x)
 
-solve1 :: Configuration -> Int
-solve1 c = count True $ cmap (\c pos -> (c `at` pos) == Just '#') $ solve1' c (step c)
+solve :: NextCellFunction -> Configuration -> Int
+solve stepFn c =
+  count True $ cmap (\c pos -> (c `at` pos) == Just '#') $ solve1' c (step stepFn c)
   where
     solve1' previous current
       | previous == current = current
-      | otherwise = solve1' current (step current)
+      | otherwise = solve1' current (step stepFn current)
+
+
+solve1 = solve nextCell1
+solve2 = solve nextCell2
 
 
 -- naive chunk
@@ -107,11 +148,23 @@ td = parse ["L.LL.LL.LL",
             "L.LLLLL.LL"]
 
 
+td2 = parse [".......#.",
+             "...#.....",
+             ".#.......",
+             ".........",
+             "..#L....#",  -- L is at (3,4)
+             "....#....",
+             ".........",
+             "#........",
+             "...#....."]
+
+
 main = do
   dat <- readFile "data.txt"
   let input = parse $ lines dat
 
   print $ solve1 input
-  -- 2361 (20 seconds using the terrible Seq method)
+  -- 2361 (~15 seconds using the terrible Seq method)
 
-  -- print $ solve2 input
+  print $ solve2 input
+  -- 2119 (~20s with Seq)
