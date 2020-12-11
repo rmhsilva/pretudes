@@ -1,44 +1,52 @@
 -- yaaas cellular automata
 
 import Data.Maybe
-import qualified Data.Sequence as Sequence
-import Data.Sequence (Seq)
+-- import qualified Data.Sequence as Sequence
+-- import Data.Sequence (Seq)
 import Data.Foldable (toList)
+import Data.Array
+
+
+-- naive chunk
+chunks _ [] = []
+chunks w xs = take w xs : chunks w (drop w xs)
+
 
 type Cell = Char
 type Position = (Int, Int)
-type Configuration = Seq (Seq Cell)
+type Configuration = Array Position Cell
 
 
 width :: Configuration -> Int
-width c = Sequence.length (c `Sequence.index` 0)
+width = (+1) . fst . snd . bounds
 
 height :: Configuration -> Int
-height = Sequence.length
+height = (+1) . snd . snd . bounds
 
 showc :: Configuration -> IO ()
-showc c = putStr $ concat $ foldRows c
-  where
-    foldRows = fmap ((++"\n") . toList)
+showc c = putStr $ unlines $ chunks (width c) $ toList c
 
+at :: Configuration -> Position -> Cell
+at c pos = c ! pos
 
-at :: Configuration -> Position -> Maybe Cell
-at c (x, y)
+maybeAt :: Configuration -> Position -> Maybe Cell
+maybeAt c (x, y)
   | x < 0 || x >= width c || y < 0 || y >= height c = Nothing
-  | otherwise = Just $ (c `Sequence.index` y) `Sequence.index` x
+  | otherwise = Just (c `at` (x, y))
 
 
-updateAt :: Configuration -> Position -> Cell -> Configuration
-updateAt c (x, y) v =
-  Sequence.update y (Sequence.update x v (c `Sequence.index` y)) c
+-- updateAt :: Configuration -> Position -> Cell -> Configuration
+-- updateAt c (x, y) v =
+--   c // [((x, y), v)]
 
 
+sightlines
+  :: (Num b, Num a, Enum b, Enum a) => a -> b -> a -> b -> [[(a, b)]]
 sightlines w h x y =
   filter (not . null) [upleft,   up,   upright,
                        left,           right,
                        downleft, down, downright]
   where
-    -- :: [[(x, y)]]
     left       = zip [x-1,x-2..0] (repeat y)
     right      = zip [x+1..w-1]   (repeat y)
     up         = zip (repeat x)   [y-1,y-2..0]
@@ -51,17 +59,16 @@ sightlines w h x y =
 
 visibleCells :: Configuration -> Position -> [Cell]
 visibleCells c (x, y) =
-  catMaybes $
-  map v' $ sightlines (width c) (height c) x y
+  mapMaybe v' $ sightlines (width c) (height c) x y
   where
     maybeHead [] = Nothing
     maybeHead (x:_) = Just x
     v' :: [Position] -> Maybe Cell
-    v' = maybeHead . filter (/='.') . mapMaybe (c `at`)
+    v' = maybeHead . filter (/='.') . map (c `at`)
 
 
 adjacentCells :: Configuration -> Position -> [Cell]
-adjacentCells c (x, y) = mapMaybe (at c) positions
+adjacentCells c (x, y) = mapMaybe (maybeAt c) positions
   where
     positions = [(x-1, y-1), (x, y-1), (x+1, y-1),
                  (x-1, y),             (x+1, y),
@@ -69,14 +76,6 @@ adjacentCells c (x, y) = mapMaybe (at c) positions
 
 numOccupied :: [Cell] -> Int
 numOccupied = length . filter (=='#')
-
-type OccupiedCounter = Configuration -> Position -> Int
-
-numAdjacentOccupied :: OccupiedCounter
-numAdjacentOccupied c = numOccupied . adjacentCells c
-
-numVisibleOccupied :: OccupiedCounter
-numVisibleOccupied c = numOccupied . visibleCells c
 
 
 nextState :: Int -> (Cell, Int) -> Cell
@@ -87,52 +86,43 @@ nextState tolerance (c, _)   = c
 
 type NextCellFunction = Configuration -> Position -> Cell
 
-nextCell :: Int -> OccupiedCounter -> NextCellFunction
+nextCell :: Int -> (Configuration -> Position -> [Cell]) -> NextCellFunction
 nextCell tolerance f c pos =
-  nextState tolerance (fromJust (c `at` pos), f c pos)
+  nextState tolerance (c `at` pos, numOccupied $ f c pos)
 
 nextCell1 :: NextCellFunction
-nextCell1 = nextCell 4 numAdjacentOccupied
+nextCell1 = nextCell 4 adjacentCells
 
 nextCell2 :: NextCellFunction
-nextCell2 = nextCell 5 numVisibleOccupied
+nextCell2 = nextCell 5 visibleCells
 
-
-cmap :: (Configuration -> Position -> a) -> Configuration -> [a]
-cmap f c = [f c (x, y) |
-             y <- [0..height c - 1],
-             x <- [0..width c - 1]]
 
 step :: NextCellFunction -> Configuration -> Configuration
 step nextCellFn c =
-  fromList (width c) $ cmap nextCellFn c
+  c // [ ((x, y), nextCellFn c (x, y))
+       | y <- [0..height c - 1],
+         x <- [0..width c - 1]]
 
 
-count x = length . filter (==x)
+countEq x = length . filter (==x)
 
 solve :: NextCellFunction -> Configuration -> Int
 solve stepFn c =
-  count True $ cmap (\c pos -> (c `at` pos) == Just '#') $ solve1' c (step stepFn c)
+  countEq '#' $ toList $ iter' c (step stepFn c)
   where
-    solve1' previous current
+    iter' previous current
       | previous == current = current
-      | otherwise = solve1' current (step stepFn current)
+      | otherwise = iter' current (step stepFn current)
 
 
 solve1 = solve nextCell1
 solve2 = solve nextCell2
 
-
--- naive chunk
-chunks _ [] = []
-chunks w xs = take w xs : chunks w (drop w xs)
-
-fromList :: Int -> [Cell] -> Configuration
-fromList w xs = Sequence.fromList $ map Sequence.fromList (chunks w xs)
-
-
 parse :: [String] -> Configuration
-parse xs = fromList (length (head xs)) $ concat xs
+parse xs = listArray bounds (concat xs)
+  where
+    bounds = ((0,0),
+              (length (head xs) - 1, length xs - 1))
 
 
 td :: Configuration
@@ -152,7 +142,7 @@ td2 = parse [".......#.",
              "...#.....",
              ".#.......",
              ".........",
-             "..#L....#",  -- L is at (3,4)
+             "..#L....#",  -- L is maybeAt (3,4)
              "....#....",
              ".........",
              "#........",
