@@ -1,3 +1,8 @@
+-- Learnt lots.
+-- The (&) operator
+-- tails and init
+--
+-- Not a very quick solution, but quick enough.
 module Dec9 where
 
 import Data.Maybe
