@@ -1,10 +1,9 @@
 -- yaaas cellular automata
+-- TODO check https://github.com/MatthiasCoppens/AOC2020/blob/master/day11/solution.hs
 
 import Data.Maybe
--- import qualified Data.Sequence as Sequence
--- import Data.Sequence (Seq)
-import Data.Foldable (toList)
 import Data.Array
+import Data.Foldable (toList)
 
 
 -- naive chunk
@@ -34,10 +33,6 @@ maybeAt c (x, y)
   | x < 0 || x >= width c || y < 0 || y >= height c = Nothing
   | otherwise = Just (c `at` (x, y))
 
-
--- updateAt :: Configuration -> Position -> Cell -> Configuration
--- updateAt c (x, y) v =
---   c // [((x, y), v)]
 
 
 sightlines
@@ -80,15 +75,16 @@ numOccupied = length . filter (=='#')
 
 nextState :: Int -> (Cell, Int) -> Cell
 nextState tolerance ('L', 0) = '#'
+nextState tolerance ('L', _) = 'L'
 nextState tolerance ('#', x) = if x >= tolerance then 'L' else '#'
-nextState tolerance (c, _)   = c
+nextState tolerance (c, _)   = error $ show c
 
 
 type NextCellFunction = Configuration -> Position -> Cell
 
 nextCell :: Int -> (Configuration -> Position -> [Cell]) -> NextCellFunction
-nextCell tolerance f c pos =
-  nextState tolerance (c `at` pos, numOccupied $ f c pos)
+nextCell tolerance checkAt c pos =
+  nextState tolerance (c `at` pos, numOccupied $ checkAt c pos)
 
 nextCell1 :: NextCellFunction
 nextCell1 = nextCell 4 adjacentCells
@@ -101,7 +97,8 @@ step :: NextCellFunction -> Configuration -> Configuration
 step nextCellFn c =
   c // [ ((x, y), nextCellFn c (x, y))
        | y <- [0..height c - 1],
-         x <- [0..width c - 1]]
+         x <- [0..width c - 1],
+         c ! (x, y) /= '.'] -- small optimisation
 
 
 countEq x = length . filter (==x)
