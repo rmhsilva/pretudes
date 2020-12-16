@@ -33,6 +33,7 @@ findInvalidFields (rules, yours, nearby) =
 solve1 = sum . findInvalidFields
 
 
+---
 
 nthField tickets n = map (!!n) tickets
 
@@ -42,20 +43,8 @@ nthFields tickets = map (nthField tickets) [0..length (head tickets) - 1]
 allFieldsValidForRule :: [Int] -> Rule -> Bool
 allFieldsValidForRule xs rule = all (isFieldValidForRule rule) xs
 
--- first rule where ALL fields are valid
-findValidRule rules fields  = head $ filter (allFieldsValidForRule fields) rules
-
-findRuleOrder rules nearby = map (findValidRule rules) (nthFields nearby)
-
 validTickets rules = filter (isTicketValidForRules rules)
 
-
--- index of first group where allFieldsValidForRule
-findGroupForRule groups rule =
-  snd $ head $ filter (\(group,_) -> allFieldsValidForRule group rule) $ zip groups [0..]
-
-solve2 (rules, yours, nearby) =
-  map (findGroupForRule (nthFields (validTickets rules nearby))) rules
 
 
 -- problem: some rules match more than one group. Some groups match more than
@@ -88,7 +77,14 @@ recur acc (this:rest) =
     thisField = fst (head this)
     thisPosition = validIndex (map snd this) (map snd acc)
 
-solve2' = recur [] . groupedPairs
+
+fieldIndices = recur [] . groupedPairs
+
+
+solve2' input@(rules, yours, nearby) = product $ map (yours!!) indices
+  where
+    indices = map snd $ filter (\f -> take 9 (fst f) == "departure" ) $ fieldIndices input
+
 
 
 ---
@@ -128,33 +124,8 @@ main = do
   dat <- readFile "data.txt"
   let input = parse $ lines dat
 
-  -- print $ solve1 input
+  print $ solve1 input
   -- 27870
 
-  let (rules, yours, nearby) = input
-  -- mapM_ print rules
-
-  let valid = yours : validTickets rules nearby
-  -- print $ length valid
-
-  let firstColumn = nthFields valid !! 1
-  -- print firstColumn
-
-  mapM_ print $ solve2' input
-
-  let indices = [5,17,13,19,10,18]
-
-  print $ product $ map (yours!!) indices
+  print $ solve2' input
   -- 3173135507987
-
-  -- print $
-  --   filter (not . snd) $
-  --   zip firstColumn (map (isFieldValidForRule (rules !! 0)) firstColumn)
-
-  -- invert it - for each rule, find the first group that satisfies it.
-
-  -- mapM_ print $ findRuleOrder rules valid
-  -- print $ findGroupForRule [ firstColumn ] (rules !! 4)
-  -- mapM_ (print . findGroupForRule (nthFields valid)) rules
-
-  -- mapM_ print . head $ nthFields (validTickets rules nearby)
