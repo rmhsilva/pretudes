@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 -- YAY
 module Dec18 where
 
@@ -7,7 +8,9 @@ import qualified Text.Parsec.Token as P
 import Text.Parsec.Language (haskellDef)
 
 
+-- this "language" looks like haskell
 lexer      = P.makeTokenParser haskellDef
+
 
 -- tokens
 parens     = P.parens lexer
@@ -15,38 +18,44 @@ natural    = P.natural lexer
 reservedOp = P.reservedOp lexer
 
 
--- data Exp =
---       EAdd Exp Exp
---     | ESub Exp Exp
---     | EMul Exp Exp
---     | EDiv Exp Exp
---     | EInt Integer
+-- expr     = buildExpressionParser table expr
 
-
-expr    = buildExpressionParser table term
+expr1    = buildExpressionParser table1 (term expr1)
         <?> "expression"
 
-term    =  parens expr
+table1   = [ [binary "+" (+) AssocLeft, binary "*" (*) AssocLeft ] ]
+
+binary  name fun = Infix (do { reservedOp name; return fun })
+
+
+term e  =  parens e
         <|> natural
         <?> "simple expression"
 
-table   = [ [binary "+" (+) AssocLeft, binary "*" (*) AssocLeft ] ]
 
-binary  name fun assoc = Infix (do { reservedOp name; return fun }) assoc
+expr2   = buildExpressionParser table2 (term expr2)
+        <?> "expression"
 
 
-evalString :: String -> Integer
-evalString str = case parse expr "" str of
+table2   = [ [binary "+" (+) AssocLeft],
+             [binary "*" (*) AssocLeft] ]
+
+
+
+--
+
+evalString expr str = case parse expr "" str of
   Left e  -> error $ show e
   Right r -> r
 
 
-solve1 = sum . map evalString
+solve1 = sum . map (evalString expr1)
+solve2 = sum . map (evalString expr2)
 
 
 main = do
   dat <- readFile "data.txt"
   let input = lines dat
-  -- mapM_ (print . evalString) input
 
   print $ solve1 input
+  print $ solve2 input
