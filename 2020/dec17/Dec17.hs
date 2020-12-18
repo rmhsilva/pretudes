@@ -1,4 +1,4 @@
-
+-- This one's called, "Should have just used Data.Set"
 module Dec17 where
 
 import qualified Data.Map as Map
