@@ -94,4 +94,4 @@ main = do
   print $ Map.size input
 
   print $ solve1 input
-  -- 173 is too low
+  -- 232
