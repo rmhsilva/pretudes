@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 -- YAY
+-- So many ways to do this.
+-- https://www.reddit.com/r/adventofcode/comments/kfeldk/2020_day_18_solutions/gg942y2/
 module Dec18 where
 
 import Text.Parsec

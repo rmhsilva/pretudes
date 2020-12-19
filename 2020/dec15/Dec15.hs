@@ -15,7 +15,6 @@ import Data.STRef (newSTRef, writeSTRef, readSTRef)
 import Data.Array.ST (STUArray)
 import Data.Array.MArray (MArray, newArray, readArray, writeArray)
 
-
 -- PART 2
 
 -- Use two mutable arrays to track if and where numbers have been seen
@@ -74,6 +73,30 @@ step game@(GameState memory turn last_spoken) =
 
 solve :: Int -> [Int] -> Int
 solve n xs = last_spoken $ until ((==n) . turn) step (initGame n xs)
+
+
+---
+-- https://github.com/haskelling/aoc2020/blob/main/15b.hs
+-- Just to benchmark.
+--
+-- Slightly slower than my solve2 version. And also crashes. Stack overflow. It
+-- has the same problem as the basic solve - keeps recursing and making new
+-- maps. The ST version is still the best.
+
+-- import qualified Data.IntMap as M
+
+-- f' :: Int -> [Int] -> Int
+-- f' nn xs = get nn
+--   where
+--     l = length xs
+--     get i = if i < l then xs !! (i - 1) else get' i
+--     get' target = step (target - l) (last xs) (l - 1) (M.fromList $ zip (init xs) [0..])
+--     step 0 y _ _ = y
+--     step target' y i m =
+--       let y' = case m M.!? y of
+--                  Just n  -> i - n
+--                  Nothing -> 0
+--       in  step (target' - 1) y' (i + 1) (M.insert y i m)
 
 
 ---
