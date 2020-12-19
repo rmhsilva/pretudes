@@ -1,8 +1,24 @@
+-- Oops. Tried to be clever and implement a full parser engine.
+--
+--
+-- Wasted too long thinking that
+--   11: 42 31 | 42 11 31  === 11: 42+ 31+
+--
+-- It's not. The number of 42s and 31s must match. The RHS doesn't guarantee
+-- that. This is true:
+--
+--   11: 42 31 | 42 11 31  === 11: 42 11? 31
+--
+-- But building my part1 parser is greedy, and the 42+ in rule8 chomps the
+-- initial 42 in this nice rule11.
+--
+-- Copped out in the end and just converted it to a recursive regex. Meh.
+
 
 module Dec19 where
 
 import Data.List.Split (splitOn)
-import Text.Regex.PCRE (mrSubList, MatchResult, (=~))
+import Text.Regex.PCRE (mrSubList, mrMatch, MatchResult, (=~))
 import Control.Monad
 import Data.Maybe
 import Text.Read (readMaybe)
@@ -16,6 +32,8 @@ data Rule = Eof             -- END (special)
           | Seq [Rule]      -- a b
           | Or Rule Rule    -- a | b
           | ManySub Int     -- a+
+          | MaybeSub Int    -- a?
+          | Rule11          -- urgh, copout for part 2
   deriving Show
 
 
@@ -23,9 +41,6 @@ type RuleMap = Map Int Rule
 
 
 -- This is for parsing the messages
-
--- buggy = M.fromList [(0, Or (Terminal 'a') (Seq [Terminal 'a', Terminal 'b']))]
--- parse buggy "aba" $ ManySub 0
 
 parse :: RuleMap -> String -> Rule -> Maybe String
 parse rules ""       Eof         = Just ""
@@ -38,6 +53,9 @@ parse rules str     (Or  ra rb ) = case parse rules str ra of
                                      Just str' -> Just str'
                                      Nothing   -> parse rules str rb
 -- for part 2:
+parse rules str     (MaybeSub i) = case parse rules str (Sub i) of
+                                     Just s  -> Just s
+                                     Nothing -> Just str
 parse rules str     (ManySub  i) = case parseRepeated rules str (Sub i) of
                                      [] -> Nothing
                                      xs -> last xs
@@ -48,8 +66,20 @@ parseRepeated rules s ruleStr = let result = parse rules s ruleStr in
                                  Nothing -> []
                                  Just s' -> result : parseRepeated rules s' ruleStr
 
-
 --
+-- just convert it to a regex...
+
+toRegex :: RuleMap -> Rule -> String
+toRegex rules (Terminal c)  = [c]
+toRegex rules (Sub i     )  = toRegex rules $ rules ! i
+toRegex rules (Seq rs    )  = concat $ map (toRegex rules) rs
+toRegex rules (Or a b    )  = "(?:" ++ (toRegex rules a) ++ "|" ++ (toRegex rules b) ++ ")"
+toRegex rules (ManySub i )  = "(?:" ++ (toRegex rules $ rules ! i) ++ ")" ++ "+"
+toRegex rules  Rule11       = "(" ++ rule42 ++ "(?1)?" ++ rule31 ++ ")"
+  where
+    rule42 = toRegex rules (rules ! 42)
+    rule31 = toRegex rules (rules ! 31)
+
 
 -- This is for parsing the input rules
 
@@ -89,12 +119,12 @@ parseRule s = head $ mapMaybe ($ s) parsers
 
 parseLine :: String -> (Int, Rule)
 parseLine s =
-  (ruleNumber, parseRule ruleStr)
+  (ruleNumber, rule)
   where
     result = s =~ "([0-9]+): (.+)$" :: MatchResult String
     matches = mrSubList result
-    ruleNumber = read (head matches) :: Int
-    ruleStr = matches !! 1
+    ruleNumber = read (matches !! 0) :: Int
+    rule = parseRule (matches !! 1)
 
 
 parseInput :: [String] -> (RuleMap, [String])
@@ -104,18 +134,24 @@ parseInput s =
     (rules:messages:_) = splitOn [""] s
 
 
-patch (original, tests) = (M.insert 0 newZero original, tests)
+patch (original, tests) = (M.union new original, tests)
   where
-    newZero = Seq [Sub 42, ManySub 42, ManySub 31]  -- needs 2 or more 42s
+    new = M.fromList [ (8,  ManySub 42), -- bug: greedy
+                       (11, Seq [Sub 42, MaybeSub 11, Sub 31])]
 
-parseInput2 = patch . parseInput
+patch' (original, tests) = (M.union new original, tests)
+  where
+    new = M.fromList [ (8,  ManySub 42),
+                       (11, Rule11) ]
+
+parseInput2 = patch' . parseInput
 
 
 --
 
 ruleZeroWithEof rules = case rules ! 0 of
                           Seq rs -> Seq $ rs ++ [Eof]
-                          _ -> error "ruleStr 0 isn't a sequence"
+                          _ -> error "rule 0 isn't a sequence"
 
 matching tests rules = mapMaybe (\t -> (const t) <$> parse rules t startRule) tests
   where
@@ -124,9 +160,19 @@ matching tests rules = mapMaybe (\t -> (const t) <$> parse rules t startRule) te
 solve (rules, tests) =
   length $ tests `matching` rules
 
-check (rules, tests) =
-  filter ((>0) . length) $ mapMaybe (\t -> parse rules t (rules ! 0)) tests
 
+matches :: RuleMap -> String -> Bool
+matches rules s =
+  length match == length s
+  where
+    reg = toRegex rules (rules ! 0)
+    match = mrMatch (s =~ (reg ++ "$") :: MatchResult String)
+
+matching' tests rules =
+  filter id $ map (matches rules) tests
+
+solve' (rules, tests) =
+  length $ tests `matching'` rules
 
 --
 
@@ -144,8 +190,7 @@ td = parseInput ["0: 4 1 5",
                  "aaaabbb"]
 
 td2 = parseInput2 [
-                  "0: 8 11",     -- original
-                  -- "0: 42 11",       -- patch!
+                  "0: 8 11",
                   "1: \"a\"",
                   "2: 1 24 | 14 4",
                   "3: 5 14 | 16 1",
@@ -160,7 +205,6 @@ td2 = parseInput2 [
                   "10: 23 14 | 28 1",
                   "11: 42 31",             -- original
                   -- "11: 42 31 | 42 11 31",  -- LOOP => 42 [42 42 ... 31 31] 31
-                  -- "11: 42+ 31+",              -- Many
                   "12: 24 14 | 19 1",
                   "13: 14 3 | 1 12",
                   "14: \"b\"",
@@ -201,31 +245,6 @@ rules2 = fst td2
 tests2 = snd td2
 
 
--- 42 == bbabb | bbaab
--- 31 ==
--- parse rules2 "bbabbbbabb" (rules2 ! 8)  -- twice sequence of 42
---
--- test1: bbabbbbaabaabba
--- bbabb bbaab aabba
--- 42    42    31
-
-
-{-
-
-0: 1 eof
-1: 2 | 2 1
-2: a
-
-matches:
-
-a
-aa
-aaa
-....
-
--}
-
-
 main = do
   dat <- readFile "data.txt"
   let input = parseInput $ lines dat
@@ -235,12 +254,8 @@ main = do
 
   let input2 = parseInput2 $ lines dat
 
-  print $ solve input2
-  -- 244 is too low
-  -- 348 is definitely wrong
-  -- 347 is also wrong
-  -- 349 is wrong too
-  -- 352 is too high
+  print $ solve' input2
+  -- 339
 
   -- let (rules, tests) = input2
   -- mapM_ print $ M.toList rules
