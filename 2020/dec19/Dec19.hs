@@ -12,7 +12,7 @@
 -- But building my part1 parser is greedy, and the 42+ in rule8 chomps the
 -- initial 42 in this nice rule11.
 --
--- Copped out in the end and just converted it to a recursive regex. Meh.
+-- Copped out in the end and just converted it to a recursive regex. Meh!
 
 
 module Dec19 where
@@ -32,6 +32,7 @@ data Rule = Eof             -- END (special)
           | Seq [Rule]      -- a b
           | Or Rule Rule    -- a | b
           | ManySub Int     -- a+
+          | NSub Int Int    -- a{n}
           | MaybeSub Int    -- a?
           | Rule11          -- urgh, copout for part 2
   deriving Show
@@ -53,6 +54,7 @@ parse rules str     (Or  ra rb ) = case parse rules str ra of
                                      Just str' -> Just str'
                                      Nothing   -> parse rules str rb
 -- for part 2:
+parse rules str     (NSub n i)   = foldM (parse rules) str (replicate n (Sub i))
 parse rules str     (MaybeSub i) = case parse rules str (Sub i) of
                                      Just s  -> Just s
                                      Nothing -> Just str
@@ -66,15 +68,37 @@ parseRepeated rules s ruleStr = let result = parse rules s ruleStr in
                                  Nothing -> []
                                  Just s' -> result : parseRepeated rules s' ruleStr
 
+
+-- type ParseState = (String, String, Rule)
+-- --                (result, bt_str, backtrack)
+
+
+-- parseBt :: RuleMap -> ParseState -> Rule -> Maybe ParseState
+
+-- parseBt rules state (ManySub i) = let result = parseBt rules state (Sub i) in
+--                                     case result of
+--                                       Nothing      -> Nothing
+--                                       Just (s,_,_) -> (result, result, ManySub i)
+
+-- parseBt rules state@(str,_,_) (Or ra rb) = let result = parse rules state ra in
+--                                              case result of
+--                                                Nothing      -> parseBt rules state rb
+--                                                Just (s,_,_) -> (result, str, rb)
+
+
+-- backtrack rules (_, str', bt) rule = parseBt rules (parseBt rules str' bt) rule
+
+
+
 --
 -- just convert it to a regex...
 
 toRegex :: RuleMap -> Rule -> String
 toRegex rules (Terminal c)  = [c]
 toRegex rules (Sub i     )  = toRegex rules $ rules ! i
-toRegex rules (Seq rs    )  = concat $ map (toRegex rules) rs
-toRegex rules (Or a b    )  = "(?:" ++ (toRegex rules a) ++ "|" ++ (toRegex rules b) ++ ")"
-toRegex rules (ManySub i )  = "(?:" ++ (toRegex rules $ rules ! i) ++ ")" ++ "+"
+toRegex rules (Seq rs    )  = concatMap (toRegex rules) rs
+toRegex rules (Or a b    )  = "(?:" ++ toRegex rules a ++ "|" ++ toRegex rules b ++ ")"
+toRegex rules (ManySub i )  = "(?:" ++ toRegex rules ( rules ! i) ++ ")" ++ "+"
 toRegex rules  Rule11       = "(" ++ rule42 ++ "(?1)?" ++ rule31 ++ ")"
   where
     rule42 = toRegex rules (rules ! 42)
@@ -114,7 +138,8 @@ parseSeq s = case map parseRule $ splitOn " " s of
 parseRule :: String -> Rule
 parseRule s = head $ mapMaybe ($ s) parsers
   where
-    parsers = [parseTerminal, parseManySub, parseSub, parseOr, parseSeq]
+    -- parsers = [parseTerminal, parseManySub, parseSub, parseOr, parseSeq]
+    parsers = [parseTerminal, parseSub, parseOr, parseSeq]
 
 
 parseLine :: String -> (Int, Rule)
@@ -123,7 +148,7 @@ parseLine s =
   where
     result = s =~ "([0-9]+): (.+)$" :: MatchResult String
     matches = mrSubList result
-    ruleNumber = read (matches !! 0) :: Int
+    ruleNumber = read (head matches) :: Int
     rule = parseRule (matches !! 1)
 
 
@@ -247,6 +272,7 @@ tests2 = snd td2
 
 main = do
   dat <- readFile "data.txt"
+
   let input = parseInput $ lines dat
 
   print $ solve input
